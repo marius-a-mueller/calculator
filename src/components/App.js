@@ -11,38 +11,72 @@ class App extends Component {
     this.handleButtonPress = this.handleButtonPress.bind(this);
   }
 
-  handleButtonPress(event, text) {
-    const ops = ["-", "+", "*", "/", "."];
-    const lastBlock = this.state.display.split(/[-+*/]/).at(-1);
-    const lastChar = this.state.display.at(-1);
-    switch (text) {
-      case "AC":
-        this.setState({ display: "0" });
-        return;
-      case "=":
-        return;
-      case "0":
-        if (lastBlock.match(/^0+$/)) return;
-        break;
-      case ".":
-        if (lastBlock.includes(".")) return;
-      case "+":
-      case "-":
-      case "*":
-      case "/":
-        if (ops.includes(this.state.display.at(-1))) return;
-      default:
-        break;
-    }
+  calculate(text) {
+    return Function(`'use strict'; return (${text})`)().toString();
+  }
 
-    if (lastBlock.match(/^0+$/) && text !== ".") {
-      this.setState((state) => {
-        return { display: state.display.slice(0, -1) + text };
-      });
+  handleButtonPress(event, text) {
+    console.log("input: " + text);
+    const ops = ["-", "+", "*", "/"];
+    const lastBlock = this.state.display.split(/[-+*/]/).at(-1);
+    // AC clears the input
+    if (text === "AC") {
+      console.log("clear");
+      this.setState({ display: "0" });
+      return;
+    }
+    // Pressing an operator immediately following = should start a new calculation that operates on the result of the previous evaluation.
+    if (text === "=") {
+      let display = this.state.display;
+      if (display.startsWith("0")) display = display.slice(1, display.length);
+      let result;
+      console.log("calculate(): " + display);
+      if (ops.includes(display.at(-1))) {
+        result = this.calculate(display.slice(0, display.length - 1));
+      } else {
+        result = this.calculate(display);
+      }
+      console.log("result: " + result);
+      this.setState({ display: result });
+      return;
+    }
+    // not allow a number to begin with multiple zeros.
+    if (text === "0" && lastBlock.match(/^0+$/)) return;
+    // a . should append to the currently displayed value
+    // two . in one number should not be accepted.
+    if (text === ".") {
+      if (lastBlock.includes(".")) return;
+      if (lastBlock === "") {
+        this.setState((state) => ({ display: state.display + "0." }));
+      } else {
+        this.setState((state) => ({ display: state.display + text }));
+      }
+      return;
+    }
+    // If 2 or more operators are entered consecutively, the operation performed should be the last operator entered (excluding the negative (-) sign). For example, if 5 + * 7 = is entered, the result should be 35 (i.e. 5 * 7); if 5 * - 5 = is entered, the result should be -25 (i.e. 5 * (-5)).
+    if (ops.includes(text) && lastBlock === "") {
+      if (text === "-") {
+        this.setState((state) => ({ display: state.display + text }));
+      } else {
+        let count = 0;
+        for (let i = this.state.display.length; i >= 0; i--) {
+          if (ops.includes(this.state.display.at(i))) {
+            count++;
+          }
+        }
+        console.log("Count: " + count);
+        this.setState((state) => ({ display: state.display.slice(0, state.display.length - count) + text }));
+      }
+      return;
+    }
+    // only zeros gets replaced by number
+    if (lastBlock.match(/^0$/)) {
+      console.log("onlyZero: " + this.state.display);
+      this.setState((state) => ({ display: state.display.slice(0, state.display.length - 1) + text }));
     } else {
-      this.setState((state) => {
-        return { display: state.display + text };
-      });
+      // Rest is displayed normally
+      console.log("Rest: " + this.state.display);
+      this.setState((state) => ({ display: state.display + text }));
     }
   }
 
