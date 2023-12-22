@@ -12,7 +12,7 @@ class App extends Component {
   }
 
   calculate(text) {
-    return Function(`'use strict'; return (${text})`)().toString();
+    return eval(text).toString();
   }
 
   handleButtonPress(event, text) {
